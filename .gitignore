@@ -35,3 +35,6 @@ node_modules
 /dev-app/environment.js
 /dist
 /test/coverage-jest
+
+# Dev app configuration (copy config/config.sample.json)
+/config/config.json

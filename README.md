@@ -1,170 +1,119 @@
-# `@actionlogementservices/aurelia-plugin-base`
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![npm package](https://img.shields.io/npm/v/%40actionlogementservices%2Faurelia-plugin-fm)](https://www.npmjs.com/package/@actionlogementservices/aurelia-plugin-fm)
 
-This project is bootstrapped by [aurelia-cli](https://github.com/aurelia/cli).
+# `@actionlogementservices/aurelia-plugin-fm`
 
-This Aurelia plugin project has a built-in dev app (with CLI built-in bundler and RequireJS) to simplify development.
+An Aurelia plugin that provides a **face matching** custom element for **aurelia v1** applications.
 
-1. The local `src/` folder, is the source code for the plugin.
-2. The local `dev-app/` folder, is the code for the dev app, just like a normal app bootstrapped by aurelia-cli.
-3. You can use normal `au run` and `au test` in development just like developing an app.
-4. You can use aurelia-testing to test your plugin, just like developing an app.
-5. To ensure compatibility to other apps, always use `PLATFORM.moduleName()` wrapper in files inside `src/`. You don't need to use the wrapper in `dev-app/` folder as CLI built-in bundler supports module name without the wrapper.
+## Description
 
-Note aurelia-cli doesn't provide a plugin skeleton with Webpack setup (not yet), but this plugin can be consumed by any app using Webpack, or CLI built-in bundler, or jspm.
+This plugin provides the `face-matching` custom element that embeds the face matching iframe of the service provider:
 
-## How to write an Aurelia plugin
+- it loads the service provider script,
+- it creates the iframe for the participant token,
+- it dispatches the iframe messages as DOM events.
 
-For a full length tutorial, visit [Aurelia plugin guide](https://aurelia-1.gitbook.io/v1-docs/developer-guides/building-plugins).
+The look and texts of the iframe are customized on the service provider side.
 
-Here is some basics. You can create new custom element, custom attribute, value converter or binding behavior manually, or use command `au generate` to help.
-```shell
-au generate element some-name
-au generate attribute some-name
-au generate value-converter some-name
-au generate binding-behavior some-name
+## Installation
+
+1. **Install** the plugin:
+
+   ```node
+   npm install @actionlogementservices/aurelia-plugin-fm
+   ```
+
+1. **Register** the plugin in aurelia with a callback returning the plugin options.
+   The options are read from the deployed environment configuration with [aurelia-configuration](https://github.com/Vheissu/aurelia-configuration):
+
+   ```javascript
+   // in your main.js or main.ts
+   import { AureliaConfiguration } from 'aurelia-configuration';
+
+   export function configure(aurelia) {
+     aurelia.use
+       .standardConfiguration()
+       .plugin(PLATFORM.moduleName('aurelia-configuration'))
+       .plugin(PLATFORM.moduleName('@actionlogementservices/aurelia-plugin-fm'), () =>
+         aurelia.container.get(AureliaConfiguration).get('faceMatching')
+       );
+   ```
+
+   with the deployed `config/config.json`:
+
+   ```json
+   {
+     "faceMatching": {
+       "serviceBaseUrl": "<service provider base url>"
+     }
+   }
+   ```
+
+   | Option           | Description |
+   | ---------------- | ----------- |
+   | `serviceBaseUrl` | **mandatory** base url of the face matching service provider. The plugin throws when it is not provided. |
+
+## Usage
+
+### `face-matching` custom element
+
+Use the `face-matching` custom element with the participant token:
+
+```html
+<face-matching
+  token.bind="token"
+  options.bind="{ lang: 'fr' }"
+  client-file-event.delegate="onClientFileEvent($event.detail)"
+  error-event.delegate="onError($event.detail)"></face-matching>
 ```
 
-By default, the cli generates command generates files in following folders:
-```
-src/elements
-src/attributes
-src/value-converters
-src/binding-behaviors
-```
+| Bindable  | Description |
+| --------- | ----------- |
+| `token`   | participant access token (`tokenFM` of the `FaceMatchingPP` response of the api-eer `POST /demande` route). The iframe is (re)created whenever it changes. |
+| `options` | face matching options (`renderMode` defaults to `pretty`, `lang`, `displayedPages`, `callbackURL`, `vidRequestMode`...). See `FaceMatchingOptions` in `types.d.ts`. |
 
-Note the folder structure is only to help you organising the files, it's not a requirement of Aurelia. You can manually create new element (or other thing) anywhere in `src/`.
+Each message of the iframe is dispatched as a bubbling DOM event whose `detail` is the message:
 
-After you added some new file, you need to register it in `src/index.js`. Like this:
-```js
-config.globalResources([
-  // ...
-  PLATFORM.moduleName('./path/to/new-file-without-ext')
-]);
-````
+| Event               | Description |
+| ------------------- | ----------- |
+| `user-event`        | user action (`FaceMatchingUserEvent`) |
+| `client-file-event` | client file or participant state change (`FaceMatchingClientFileEvent`) |
+| `error-event`       | error (`FaceMatchingErrorEvent`), also dispatched with the cause `SCRIPT_LOADING_ERROR` when the service provider script cannot be loaded |
+| `display-event`     | display change (`FaceMatchingDisplayEvent`): the iframe height is adjusted automatically by the service provider script |
+| `exit-event`        | the participant chose to come back later |
 
-The usage of `PLATFORM.moduleName` wrapper is mandatory. It's needed for your plugin to be consumed by any app using webpack, CLI built-in bundler, or jspm.
+## Compatibility
 
-## Resource import within the dev app
+This plugin has been tested on aurelia v1 with **webpack**.
+The application provides the plugin options, typically with `aurelia-configuration 2.0.0`.
 
-In dev app, when you need to import something from the inner plugin (for example, importing a class for dependency injection), use special name `"resources"` to reference the inner plugin.
+## Development
 
-```js
-import {inject} from 'aurelia-framework';
-// "resources" refers the inner plugin src/index.js
-import {MyService} from 'resources';
+The plugin is bootstrapped by [aurelia-cli](https://github.com/aurelia/cli):
 
-@inject(MyService)
-export class App {
-  constructor(myService) {
-    this.myService = myService;
-  }
-}
-```
+- the `src/` folder contains the source code of the plugin,
+- the `dev-app/` folder contains the code of the dev app used to test the plugin. Its configuration is read from `config/config.json`.
 
-## Manage dependencies
+| Command                 | Description |
+| ----------------------- | ----------- |
+| `npm start`             | runs the dev app on `http://localhost:9000` |
+| `npm test`              | lints and runs the unit tests |
+| `npm run lint`          | fixes the lint and formatting issues |
+| `npm run build`         | builds the plugin in `dist/` |
+| `npm run publish:local` | publishes the plugin locally with [yalc](https://github.com/wclr/yalc) to test it in an application |
 
-By default, this plugin has no "dependencies" in package.json. Theoretically this plugin depends on at least `aurelia-pal` because `src/index.js` imports it. It could also depends on more core Aurelia package like `aurelia-binding` or `aurelia-templating` if you build advanced components that reference them.
+Always use the `PLATFORM.moduleName()` wrapper in the files of `src/` so that the plugin can be consumed by webpack applications.
 
-Ideally you need to carefully add those `aurelia-pal` (`aurelia-binding`...) to "dependencies" in package.json. But in practice you don't have to. Because every app that consumes this plugin will have full Aurelia core packages installed.
+## Release
 
-Furthermore, there are two benefits by leaving those dependencies out of plugin's package.json.
-1. ensure this plugin doesn't bring in a duplicated Aurelia core package to consumers' app. This is mainly for app built with webpack. We had been hit with `aurelia-binding` v1 and v2 conflicts due to 3rd party plugin asks for `aurelia-binding` v1.
-2. reduce the burden for npm/yarn when installing this plugin.
+The package is published on npm by the `Release` GitHub workflow, with npm trusted publishing (no npm token is stored in GitHub):
 
-If you are a perfectionist who could not stand leaving out dependencies, I recommend you to add `aurelia-pal` (`aurelia-binding`...) to "peerDependencies" in package.json. So at least it could not cause a duplicated Aurelia core package.
+1. In your pull request, bump the version with `npm run bump` (updates `package.json` and `package-lock.json` only).
+1. When the pull request is merged on `main`, the workflow runs the tests and **stages** the new version on npm.
+   Prerelease versions (e.g. `1.1.0-0`) are staged with the `next` dist-tag.
+1. The workflow creates a draft GitHub release and an issue assigned to the person who merged, as a reminder to:
+   - approve the staged version in the **Staged Packages** tab of the [npm package](https://www.npmjs.com/package/@actionlogementservices/aurelia-plugin-fm) (2FA required),
+   - publish the draft GitHub release, which creates the git tag,
+   - close the issue.
 
-If your plugin depends on other npm package, like `lodash` or `jquery`, **you have to add them to "dependencies" in package.json**.
-
-## Build Plugin
-
-Run `au build-plugin`. This will transpile all files from `src/` folder to `dist/native-modules/` and `dist/commonjs/`.
-
-For example, `src/index.js` will become `dist/native-modules/index.js` and `dist/commonjs/index.js`.
-
-Note all other files in `dev-app/` folder are for the dev app, they would not appear in the published npm package.
-
-## Consume Plugin
-
-By default, the `dist/` folder is not committed to git. (We have `/dist` in `.gitignore`). But that would not prevent you from consuming this plugin through direct git reference.
-
-You can consume this plugin directly by:
-```shell
-npm i github:actionlogementservices/aurelia-plugin-base
-# or if you use bitbucket
-npm i bitbucket:actionlogementservices/aurelia-plugin-base
-# or if you use gitlab
-npm i gitlab:actionlogementservices/aurelia-plugin-base
-# or plain url
-npm i https:/github.com/actionlogementservices/aurelia-plugin-base.git
-```
-
-Then load the plugin in app's `main.js` like this.
-```js
-aurelia.use.plugin('@actionlogementservices/aurelia-plugin-base');
-// for webpack user, use PLATFORM.moduleName wrapper
-aurelia.use.plugin(PLATFORM.moduleName('@actionlogementservices/aurelia-plugin-base'));
-```
-
-The missing `dist/` files will be filled up by npm through `"prepare": "npm run build"` (in `"scripts"` section of package.json).
-
-Yarn has a [bug](https://github.com/yarnpkg/yarn/issues/5235) that ignores `"prepare"` script. If you want to use yarn to consume your plugin through direct git reference, remove `/dist` from `.gitignore` and commit all the files. Note you don't need to commit `dist/` files if you only use yarn to consume this plugin through published npm package (`npm i @actionlogementservices/aurelia-plugin-base`).
-
-## Publish npm package
-
-By default, `"private"` field in package.json has been turned on, this prevents you from accidentally publish a private plugin to npm.
-
-To publish the plugin to npm for public consumption:
-
-1. Remove `"private": true,` from package.json.
-2. Pump up project version. This will run through `au test` (in "preversion" in package.json) first.
-```shell
-npm version patch # or minor or major
-```
-3. Push up changes to your git server
-```shell
-git push && git push --tags
-```
-4. Then publish to npm, you need to have your npm account logged in.
-```shell
-npm publish
-```
-
-## Automate changelog, git push, and npm publish
-
-You can enable `npm version patch # or minor or major` to automatically update changelog, push commits and version tag to the git server, and publish to npm.
-
-Here is one simple setup.
-1. `npm i -D standard-changelog`. We use [`standard-changelog`](https://github.com/conventional-changelog/conventional-changelog) as a minimum example to support conventional changelog.
-  * Alternatively you can use high level [standard-version](https://github.com/conventional-changelog/standard-version).
-2. Add two commands to `"scripts"` section of package.json.
-```
-"scripts": {
-  // ...
-  "version": "standard-changelog && git add CHANGELOG.md",
-  "postversion": "git push && git push --tags && npm publish"
-},
-```
-3. you can remove `&& npm publish` if your project is private
-
-For more information, go to https://aurelia.io/docs/cli/cli-bundler
-
-## Run dev app
-
-Run `au run`, then open `http://localhost:9000`
-
-To open browser automatically, do `au run --open`.
-
-To change dev server port, do `au run --port 8888`.
-
-To change dev server host, do `au run --host 127.0.0.1`
-
-To install new npm packages automatically, do `au run --auto-install`
-
-**PS:** You could mix all the flags as well, `au run --host 127.0.0.1 --port 7070 --open`
-
-
-## Unit tests
-
-Run `au test` (or `au jest`).
-
-To run in watch mode, `au test --watch` or `au jest --watch`.
+If the staged version is rejected, delete the draft release and close the issue.

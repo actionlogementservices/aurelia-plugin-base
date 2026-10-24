@@ -1,8 +1,14 @@
 export class App {
-  message = 'from Aurelia!';
+  tokenInput = '';
+  token;
+  options = { lang: 'fr' };
+  events = [];
 
-  clicked() {
-    // eslint-disable-next-line no-alert
-    alert('A primary button click or a touch');
+  start() {
+    this.token = this.tokenInput;
+  }
+
+  log(event) {
+    this.events.unshift(`${event.type}: ${JSON.stringify(event.detail)}`);
   }
 }

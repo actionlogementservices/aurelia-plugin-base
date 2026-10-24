@@ -1,0 +1,5 @@
+{
+  "faceMatching": {
+    "serviceBaseUrl": "<service provider base url>"
+  }
+}
